@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/steez_runner_42.html -->
+<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/steez_runner_45.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -208,8 +208,8 @@ try{
   var SPR_RUN_W = 36, SPR_RUN_H = 44;
   var SPR_JUMP_W = 29, SPR_JUMP_H = 44;
   var BOARD_W = 27, BOARD_H = 5.6;
-  var chicken = { x: 55, y: groundY, vy: 0, jumping: false };
-  var GRAV = 0.62, JUMP_V = -10.5;
+  var chicken = { x: 55, y: groundY, vy: 0, jumping: false, jumpsUsed: 0 };
+  var GRAV = 0.62, JUMP_V = -10.5, JUMP_V2 = -9.2, MAX_JUMPS = 2;
 
   var stars = [];
   for(var s=0; s<16; s++){ stars.push({x: Math.random()*LOGICAL_W, y: Math.random()*90, r: 0.6+Math.random()*1}); }
@@ -263,13 +263,16 @@ try{
     deathAudio.currentTime = 0;
     deathAudio.play().catch(function(){});
   }
+  function vibrate(pattern){
+    try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
+  }
 
   function reset(){
     stopAllSounds();
     state = 'playing';
     score = 0; elapsed = 0;
     obstacles = []; spawnTimer = 0;
-    chicken.y = groundY; chicken.vy = 0; chicken.jumping = false;
+    chicken.y = groundY; chicken.vy = 0; chicken.jumping = false; chicken.jumpsUsed = 0;
     document.getElementById('overlay').style.display = 'none';
   }
 
@@ -282,17 +285,28 @@ try{
     if(req){ try{ req.call(el); }catch(e){} }
   }
 
+  var lastJumpInputTime = 0;
+  var JUMP_INPUT_DEBOUNCE = 120; // ms — 터치/마우스 합성 이벤트 중복 호출 방지
+
   function jump(){
     if(!spriteReady) return;
+    var now = Date.now();
+    if(now - lastJumpInputTime < JUMP_INPUT_DEBOUNCE) return;
+    lastJumpInputTime = now;
+
     tryFullscreen();
     if(state === 'ready' || state === 'over'){ reset(); return; }
-    if(state === 'playing' && !chicken.jumping){ chicken.vy = JUMP_V; chicken.jumping = true; playJumpSound(); }
+    if(state === 'playing' && chicken.jumpsUsed < MAX_JUMPS){
+      chicken.vy = chicken.jumpsUsed === 0 ? JUMP_V : JUMP_V2;
+      chicken.jumping = true;
+      chicken.jumpsUsed += 1;
+      playJumpSound();
+    }
   }
 
   frame.style.cursor = 'pointer';
-  frame.addEventListener('mousedown', jump);
   frame.addEventListener('touchstart', function(e){ e.preventDefault(); jump(); }, { passive: false });
-  frame.addEventListener('click', jump);
+  frame.addEventListener('mousedown', function(e){ if(e.pointerType === 'touch') return; jump(); });
   document.addEventListener('keydown', function(e){ if(e.code === 'Space'){ e.preventDefault(); jump(); } });
 
   var LEVEL_DURATION = 480; // 8초마다 한 단계씩
@@ -425,7 +439,7 @@ try{
 
       chicken.vy += GRAV;
       chicken.y += chicken.vy;
-      if(chicken.y > groundY){ chicken.y = groundY; chicken.vy = 0; chicken.jumping = false; }
+      if(chicken.y > groundY){ chicken.y = groundY; chicken.vy = 0; chicken.jumping = false; chicken.jumpsUsed = 0; }
 
       spawnTimer -= 1;
       if(spawnTimer <= 0){
@@ -455,6 +469,7 @@ try{
           if(cRight > o.x && cLeft < o.x + o.w && cBottom > oTop){
             state = 'over';
             playDeathSound();
+            vibrate([40, 30, 60]);
             if(score > best) best = score;
             var ov = document.getElementById('overlay');
             ov.innerHTML = '<div style="font-size:20px; font-weight:500; color:#1F1B17; background:rgba(244,241,236,0.85); padding:4px 14px; border-radius:8px;">score ' + score + '</div><div style="font-size:13px; color:#6b6560; margin-top:6px; background:rgba(244,241,236,0.85); padding:2px 10px; border-radius:6px;">best ' + best + '</div><div style="font-size:13px; color:#B8543A; margin-top:10px; background:rgba(244,241,236,0.85); padding:2px 10px; border-radius:6px;">tap to retry</div>';
