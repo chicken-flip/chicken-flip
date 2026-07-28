@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/steez_runner_47.html -->
+<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/steez_runner_48.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -358,7 +358,7 @@ try{
   frame.addEventListener('mousedown', function(e){ if(e.pointerType === 'touch') return; jump(); });
   document.addEventListener('keydown', function(e){ if(e.code === 'Space'){ e.preventDefault(); jump(); } });
 
-  var LEVEL_DURATION = 480; // 8초마다 한 단계씩
+  var LEVEL_DURATION = 400; // 약 6.7초마다 한 단계씩 (기존 8초 → 앞당김, 레벨이 올라갈수록 체감 폭이 더 커짐)
 
   function currentLevel(){
     return Math.floor(elapsed / LEVEL_DURATION);
@@ -366,7 +366,7 @@ try{
 
   function currentSpeed(){
     var level = Math.min(currentLevel(), 10); // 최대 10단계까지
-    return walkSpeed + level * 0.85;
+    return walkSpeed + level * 1.05; // 더블점프로 쉬워진 난이도를 보정하기 위해 증가폭 상향 (0.85 → 1.05)
   }
 
   function drawBackground(speed){
