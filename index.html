@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/steez_runner_49.html -->
+<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/steez_runner_53.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -91,8 +91,8 @@
 <span>Turn your phone sideways to play</span>
 </div>
 
-<div class="frame" id="frame" style="margin-left: 0px; width: 1920px; height: 858.947px; cursor: pointer;">
-<canvas id="gc" width="1920" height="859" style="width: 1920px; height: 858.947px;"></canvas>
+<div class="frame" id="frame" style="margin-left: 93px; width: 650px; height: 290.789px; cursor: pointer;">
+<canvas id="gc" width="650" height="291" style="width: 650px; height: 290.789px;"></canvas>
 <div id="overlay"><div style="font-size:15px; font-weight:500; color:#1F1B17;">탭해서 시작</div></div>
 </div>
 </div>
@@ -472,8 +472,88 @@ try{
 
   var OBSTACLE_TYPES = ['cat', 'dog', 'cone', 'bin', 'trashbag', 'hydrant', 'pigeon'];
   var OBS_ASPECT = { cat: 31/40, dog: 39/40, cone: 58/70, bin: 74/78, trashbag: 56/68, hydrant: 35/60, pigeon: 115/60 };
+  function drawBarricade(o){
+    var top = groundY - o.h + 4;
+    var legW = Math.min(o.w * 0.09, 14);
+    var beamH = o.h * 0.62;
+    var beamTop = top + o.h * 0.08;
+    // 검은 A자 다리 (좌/우)
+    ctx.fillStyle = '#1F1B17';
+    [o.x, o.x + o.w - legW].forEach(function(lx){
+      ctx.beginPath();
+      ctx.moveTo(lx, top + o.h);
+      ctx.lineTo(lx + legW*0.15, beamTop + beamH*0.35);
+      ctx.lineTo(lx + legW*0.85, beamTop + beamH*0.35);
+      ctx.lineTo(lx + legW, top + o.h);
+      ctx.closePath();
+      ctx.fill();
+    });
+    // 노란 가로 빔
+    var beamX = o.x + legW*0.4, beamW = o.w - legW*0.8;
+    ctx.fillStyle = '#F2C200';
+    ctx.fillRect(beamX, beamTop, beamW, beamH);
+    ctx.strokeStyle = '#B8543A';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(beamX, beamTop, beamW, beamH);
+    // 초록 텍스트
+    ctx.fillStyle = '#1E7A34';
+    var fontSize = Math.max(Math.min(beamH * 0.6, 12), 7);
+    ctx.font = 'bold ' + fontSize + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('안전제일', beamX + beamW/2, beamTop + beamH/2 + 0.5);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  function drawSpikeStrip(o){
+    var top = groundY - o.h + 4;
+    var baseH = o.h * 0.4;
+    var baseTop = groundY - baseH + 4;
+    // 노랑/검정 대각선 줄무늬 바닥판
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(o.x, baseTop, o.w, baseH);
+    ctx.clip();
+    var stripeW = 10;
+    ctx.fillStyle = '#F2C200';
+    ctx.fillRect(o.x, baseTop, o.w, baseH);
+    ctx.fillStyle = '#1F1B17';
+    for(var sx = o.x - baseH; sx < o.x + o.w + baseH; sx += stripeW*2){
+      ctx.beginPath();
+      ctx.moveTo(sx, baseTop + baseH);
+      ctx.lineTo(sx + baseH, baseTop);
+      ctx.lineTo(sx + baseH + stripeW, baseTop);
+      ctx.lineTo(sx + stripeW, baseTop + baseH);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+    // 뾰족한 스파이크들
+    var spikeCount = Math.max(Math.round(o.w / 22), 3);
+    var spikeH = o.h - baseH;
+    ctx.fillStyle = '#2A2A2A';
+    for(var i = 0; i < spikeCount; i++){
+      var sxp = o.x + (o.w / spikeCount) * (i + 0.5);
+      ctx.beginPath();
+      ctx.moveTo(sxp - 2, baseTop);
+      ctx.lineTo(sxp, top);
+      ctx.lineTo(sxp + 2, baseTop);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
   function drawObstacle(o){
     var top = groundY - o.h + 4;
+    if(o.wide){
+      ctx.save();
+      ctx.shadowColor = '#D97757';
+      ctx.shadowBlur = 6;
+      if(o.type === 'barricade') drawBarricade(o); else drawSpikeStrip(o);
+      ctx.restore();
+      return;
+    }
     ctx.drawImage(obsImgs[o.type], o.x, top, o.w, o.h);
   }
 
@@ -492,20 +572,35 @@ try{
 
       spawnTimer -= 1;
       if(spawnTimer <= 0){
-        var type = OBSTACLE_TYPES[Math.floor(Math.random()*OBSTACLE_TYPES.length)];
-        var h;
-        if(type === 'pigeon'){ h = 20 + Math.random()*2; }
-        else if(type === 'cat' || type === 'dog'){ h = 28 + Math.random()*4; }
-        else if(type === 'bin'){ h = 35 + Math.random()*4; }
-        else { h = 33 + Math.random()*7; } // cone, trashbag, hydrant
-        var w = h * OBS_ASPECT[type];
-        obstacles.push({ x: LOGICAL_W + 10, w: w, h: h, type: type });
         var lvl = Math.min(currentLevel(), 10);
-        var minFrames = lvl < 5 ? 45 : Math.max(45 - (lvl-4)*7, 14); // 레벨 5부터 최소값이 줄어들어 9~10에서 거의 연속 점프 수준 (더블점프 보정으로 더 일찍/더 좁게)
-        var speedRatio = walkSpeed / speed;
-        var baseFrames = Math.max(78 * Math.pow(speedRatio, 1.4), minFrames + 2); // 속도가 오를수록 빈도가 비례 이상으로 가파르게 증가 (후반부일수록 정신없어짐)
-        var raw = baseFrames * (0.65 + Math.random()*0.6); // 불규칙한 편차
-        spawnTimer = Math.max(raw, minFrames);
+
+        // 레벨 6(내부 인덱스 5)부터 25% 확률로 폭 넓은 바리케이드/스파이크 스트립 스폰 (더블점프 필요)
+        var spawnWide = lvl >= 5 && Math.random() < 0.25;
+
+        if(spawnWide){
+          var singleJumpRangePx = (2 * Math.abs(JUMP_V) / GRAV) * speed; // 한 번 점프의 최대 커버 거리
+          var wideType = Math.random() < 0.5 ? 'barricade' : 'spikestrip';
+          var wideW = singleJumpRangePx * (0.6 + Math.random()*0.1); // 최대 점프거리 10 기준 6~7 정도의 폭
+          var wideH = wideType === 'barricade' ? 30 : 24;
+          obstacles.push({ x: LOGICAL_W + 10, w: wideW, h: wideH, type: wideType, wide: true });
+          var minFrames = lvl < 5 ? 45 : Math.max(45 - (lvl-4)*7, 14);
+          spawnTimer = Math.max(90 * (0.8 + Math.random()*0.4), minFrames + 30); // 다음 장애물까지 여유를 좀 더 둠
+        } else {
+          var type = OBSTACLE_TYPES[Math.floor(Math.random()*OBSTACLE_TYPES.length)];
+          var h;
+          if(type === 'pigeon'){ h = 20 + Math.random()*2; }
+          else if(type === 'cat' || type === 'dog'){ h = 28 + Math.random()*4; }
+          else if(type === 'bin'){ h = 35 + Math.random()*4; }
+          else { h = 33 + Math.random()*7; } // cone, trashbag, hydrant
+          var w = h * OBS_ASPECT[type];
+          obstacles.push({ x: LOGICAL_W + 10, w: w, h: h, type: type });
+
+          var minFrames = lvl < 5 ? 45 : Math.max(45 - (lvl-4)*7, 14); // 레벨 5부터 최소값이 줄어들어 9~10에서 거의 연속 점프 수준
+          var speedRatio = walkSpeed / speed;
+          var baseFrames = Math.max(78 * Math.pow(speedRatio, 1.4), minFrames + 2); // 속도가 오를수록 빈도가 비례 이상으로 가파르게 증가
+          var raw = baseFrames * (0.65 + Math.random()*0.6); // 불규칙한 편차
+          spawnTimer = Math.max(raw, minFrames);
+        }
       }
       for(var i = obstacles.length - 1; i >= 0; i--){
         obstacles[i].x -= speed;
