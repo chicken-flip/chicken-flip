@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/steez_runner_48.html -->
+<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/steez_runner_49.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -501,10 +501,10 @@ try{
         var w = h * OBS_ASPECT[type];
         obstacles.push({ x: LOGICAL_W + 10, w: w, h: h, type: type });
         var lvl = Math.min(currentLevel(), 10);
-        var minFrames = lvl < 7 ? 50 : Math.max(50 - (lvl-6)*10, 18); // 레벨 7부터 최소값이 줄어들어 9~10에서 거의 연속 점프 수준
-        var speedRatio = walkSpeed / speed; // 속도가 오른 만큼 정확히 반비례로 줄어듦
-        var baseFrames = Math.max(78 * speedRatio, minFrames + 3); // 빈도가 속도 증가율에 비례해서 늘어남
-        var raw = baseFrames * (0.7 + Math.random()*0.6); // 불규칙한 편차
+        var minFrames = lvl < 5 ? 45 : Math.max(45 - (lvl-4)*7, 14); // 레벨 5부터 최소값이 줄어들어 9~10에서 거의 연속 점프 수준 (더블점프 보정으로 더 일찍/더 좁게)
+        var speedRatio = walkSpeed / speed;
+        var baseFrames = Math.max(78 * Math.pow(speedRatio, 1.4), minFrames + 2); // 속도가 오를수록 빈도가 비례 이상으로 가파르게 증가 (후반부일수록 정신없어짐)
+        var raw = baseFrames * (0.65 + Math.random()*0.6); // 불규칙한 편차
         spawnTimer = Math.max(raw, minFrames);
       }
       for(var i = obstacles.length - 1; i >= 0; i--){
@@ -535,6 +535,9 @@ try{
       ctx.fillStyle = night > 0.5 ? '#F4F1EC' : '#1F1B17';
       ctx.font = '13px sans-serif';
       ctx.fillText('score ' + score, LOGICAL_W - 70, 20);
+      ctx.font = '12px sans-serif';
+      var lvDisplay = (currentLevel() + 1 >= 10) ? 'MAX' : (currentLevel() + 1);
+      ctx.fillText('LV ' + lvDisplay, LOGICAL_W - 70, 38);
     }
   }
   loop();
