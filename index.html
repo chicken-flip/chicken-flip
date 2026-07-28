@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/steez_runner_45.html -->
+<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/steez_runner_46.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -251,17 +251,66 @@ try{
   jumpAudio.preload = 'auto';
   deathAudio.preload = 'auto';
 
+  // --- Web Audio API 전환: <audio> 태그의 재생 파이프라인 지연 + MP3 인코더 선두 무음을 제거하기 위함 ---
+  var audioCtx = null;
+  var jumpBuffer = null, deathBuffer = null;
+  var currentJumpSrc = null, currentDeathSrc = null;
+
+  function trimSilence(buffer, threshold){
+    threshold = threshold || 0.015;
+    var channels = buffer.numberOfChannels;
+    var length = buffer.length;
+    var start = 0;
+    outer:
+    for (var i = 0; i < length; i++){
+      for (var c = 0; c < channels; c++){
+        if (Math.abs(buffer.getChannelData(c)[i]) > threshold){ start = i; break outer; }
+      }
+    }
+    if (start === 0 || start >= length) return buffer;
+    var trimmed = audioCtx.createBuffer(channels, length - start, buffer.sampleRate);
+    for (var c = 0; c < channels; c++){
+      trimmed.getChannelData(c).set(buffer.getChannelData(c).subarray(start));
+    }
+    return trimmed;
+  }
+
+  function loadBuffer(dataUri, onReady){
+    fetch(dataUri).then(function(r){ return r.arrayBuffer(); }).then(function(buf){
+      audioCtx.decodeAudioData(buf, function(decoded){ onReady(trimSilence(decoded)); }, function(){});
+    }).catch(function(){});
+  }
+
+  function ensureAudioCtx(){
+    if (audioCtx) { if (audioCtx.state === 'suspended') audioCtx.resume(); return; }
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    loadBuffer(jumpAudio.src, function(b){ jumpBuffer = b; });
+    loadBuffer(deathAudio.src, function(b){ deathBuffer = b; });
+  }
+
   function stopAllSounds(){
+    if (currentJumpSrc) { try{ currentJumpSrc.stop(); }catch(e){} currentJumpSrc = null; }
+    if (currentDeathSrc) { try{ currentDeathSrc.stop(); }catch(e){} currentDeathSrc = null; }
     jumpAudio.pause(); jumpAudio.currentTime = 0;
     deathAudio.pause(); deathAudio.currentTime = 0;
   }
   function playJumpSound(){
-    jumpAudio.currentTime = 0;
-    jumpAudio.play().catch(function(){});
+    ensureAudioCtx();
+    if (!jumpBuffer){ jumpAudio.currentTime = 0; jumpAudio.play().catch(function(){}); return; }
+    var src = audioCtx.createBufferSource();
+    src.buffer = jumpBuffer;
+    src.connect(audioCtx.destination);
+    src.start(0);
+    currentJumpSrc = src;
   }
   function playDeathSound(){
-    deathAudio.currentTime = 0;
-    deathAudio.play().catch(function(){});
+    ensureAudioCtx();
+    if (!deathBuffer){ deathAudio.currentTime = 0; deathAudio.play().catch(function(){}); return; }
+    var src = audioCtx.createBufferSource();
+    src.buffer = deathBuffer;
+    src.connect(audioCtx.destination);
+    src.start(0);
+    currentDeathSrc = src;
   }
   function vibrate(pattern){
     try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
