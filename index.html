@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/steez_runner_46.html -->
+<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/steez_runner_47.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -91,8 +91,8 @@
 <span>Turn your phone sideways to play</span>
 </div>
 
-<div class="frame" id="frame" style="margin-left: 0px; width: 1449px; height: 648.237px; cursor: pointer;">
-<canvas id="gc" width="1449" height="648" style="width: 1449px; height: 648.237px;"></canvas>
+<div class="frame" id="frame" style="margin-left: 0px; width: 1920px; height: 858.947px; cursor: pointer;">
+<canvas id="gc" width="1920" height="859" style="width: 1920px; height: 858.947px;"></canvas>
 <div id="overlay"><div style="font-size:15px; font-weight:500; color:#1F1B17;">탭해서 시작</div></div>
 </div>
 </div>
@@ -257,7 +257,7 @@ try{
   var currentJumpSrc = null, currentDeathSrc = null;
 
   function trimSilence(buffer, threshold){
-    threshold = threshold || 0.015;
+    threshold = threshold || 0.035;
     var channels = buffer.numberOfChannels;
     var length = buffer.length;
     var start = 0;
@@ -283,7 +283,7 @@ try{
 
   function ensureAudioCtx(){
     if (audioCtx) { if (audioCtx.state === 'suspended') audioCtx.resume(); return; }
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
     loadBuffer(jumpAudio.src, function(b){ jumpBuffer = b; });
     loadBuffer(deathAudio.src, function(b){ deathBuffer = b; });
   }
