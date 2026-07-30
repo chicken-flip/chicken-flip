@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0054)file:///C:/Users/Husteel/Downloads/chicken_flip_3.html -->
+<!-- saved from url=(0054)file:///C:/Users/Husteel/Downloads/chicken_flip_4.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -282,8 +282,11 @@ try{
   var audioCtx = null;
   var jumpBuffer = null, deathBuffer = null;
   var bgmBuffers = new Array(10).fill(null); // 1~10단계 사전 렌더링 버퍼 (피치 보존, atempo로 생성)
+  var BGM_STAGE_RATES = [0.6,0.7,0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5];
+  var BGM_LOOP_ORIG_DURATION = 13.5; // 원본 루프 길이(1.0배속 기준) - 위상 계산용
   var bgmMasterGain = null, activeBgmSource = null, activeBgmGain = null;
   var bgmStarted = false, currentBgmStage = 1;
+  var bgmPhase = 0, bgmPhaseTime = 0, bgmCurrentRate = BGM_STAGE_RATES[0]; // 원곡 기준 현재 재생 위치(위상) 추적
   var currentJumpSrc = null, currentDeathSrc = null;
 
   function trimSilence(buffer, threshold){
@@ -331,6 +334,17 @@ try{
     ensureBgmMasterGain();
     var cf = (crossfadeSec === undefined) ? 0.35 : crossfadeSec;
     var now = audioCtx.currentTime;
+    var newRate = BGM_STAGE_RATES[stage-1];
+
+    // 원곡 기준 현재 재생 위치(위상) 계산 - 이전 버퍼가 없으면 곡 처음부터
+    if (activeBgmSource) {
+      bgmPhase = (bgmPhase + (now - bgmPhaseTime) * bgmCurrentRate) % BGM_LOOP_ORIG_DURATION;
+    } else {
+      bgmPhase = 0;
+    }
+    bgmPhaseTime = now;
+    bgmCurrentRate = newRate;
+    var offset = bgmPhase / newRate; // 새 배속 버퍼에서 같은 원곡 위치에 대응하는 지점
 
     var newSource = audioCtx.createBufferSource();
     newSource.buffer = bgmBuffers[stage-1];
@@ -340,7 +354,7 @@ try{
     if (cf > 0) newGain.gain.linearRampToValueAtTime(1, now + cf);
     newSource.connect(newGain);
     newGain.connect(bgmMasterGain);
-    newSource.start(0);
+    newSource.start(now, offset); // 곡의 같은 지점(위상)에서 이어서 시작 - 처음(0초)으로 리셋되지 않게
 
     var oldSource = activeBgmSource, oldGain = activeBgmGain;
     if (oldSource && oldGain){
@@ -426,7 +440,7 @@ try{
     lastJumpInputTime = now;
 
     tryFullscreen();
-    if(state === 'ready' || state === 'over'){ reset(); return; }
+    if(state === 'ready' || state === 'over'){ ensureAudioCtx(); reset(); return; }
     if(state === 'playing' && chicken.jumpsUsed < MAX_JUMPS){
       chicken.vy = chicken.jumpsUsed === 0 ? JUMP_V : JUMP_V2;
       chicken.jumping = true;
@@ -710,10 +724,10 @@ try{
           var wideType = Math.random() < 0.5 ? 'barricade' : 'spikestrip';
           var wideW, wideH;
           if(wideType === 'barricade'){
-            wideW = singleJumpRangePx * (0.38 + Math.random()*0.08); // 최대 점프거리 기준 38~46%
+            wideW = singleJumpRangePx * (1.1 + Math.random()*0.15); // 한 번 점프 최대거리의 110~125% -> 반드시 더블점프 필요
             wideH = 44 + Math.random()*4;
           } else {
-            wideW = singleJumpRangePx * (0.55 + Math.random()*0.1); // 스파이크스트립은 낮고 길게: 55~65%
+            wideW = singleJumpRangePx * (1.15 + Math.random()*0.2); // 낮고 길게: 115~135%
             wideH = 16 + Math.random()*3;
           }
           obstacles.push({ x: LOGICAL_W + 10, w: wideW, h: wideH, type: wideType, wide: true });
