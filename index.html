@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/chicken_flip_12.html -->
+<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/chicken_flip_15.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -30,6 +30,8 @@
   canvas { display:block; }
   #overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; background:rgba(31,27,23,0.18); }
   #overlay img { width: 54px; opacity:0.9; margin-bottom:2px; }
+  #pauseBtn { position:absolute; top:8px; left:8px; z-index:5; width:28px; height:28px; border-radius:50%; border:none; background:rgba(31,27,23,0.55); color:#F4F1EC; font-size:11px; letter-spacing:1px; display:none; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+  #pauseBtn.show { display:flex; }
 
   .ovCard { background:#F4F1EC; border:3px solid #1F1B17; border-radius:16px; box-shadow:0 6px 0 #1F1B17, 0 6px 14px rgba(0,0,0,0.35); padding:18px 26px 16px; text-align:center; min-width:180px; animation: ovPop 0.25s cubic-bezier(.34,1.56,.64,1); }
   .ovStripe { width:44px; height:4px; margin:0 auto 10px; border-radius:2px; background:linear-gradient(90deg,#D97757,#B8543A); }
@@ -103,9 +105,10 @@
 <span>Turn your phone sideways to play</span>
 </div>
 
-<div class="frame" id="frame" style="margin-left: 0px; width: 500px; height: 223.684px; cursor: pointer;">
-<canvas id="gc" width="500" height="224" style="width: 500px; height: 223.684px;"></canvas>
-<div id="overlay" style="display: flex;"><div class="ovCard"><div class="ovStripe"></div><div class="ovTitle" style="font-size:12px; letter-spacing:2px; color:#8a8378;">Score</div><div class="ovScore">18</div><div class="ovBest">BEST &nbsp;<b>377</b></div><div class="ovDivider"></div><div class="ovCta">Tap to Retry</div></div></div>
+<div class="frame" id="frame" style="margin-left: 0px; width: 1138px; height: 509.105px; cursor: pointer;">
+<canvas id="gc" width="1138" height="509" style="width: 1138px; height: 509.105px;"></canvas>
+<button id="pauseBtn" aria-label="Pause">❙❙</button>
+<div id="overlay"><div class="ovCard"><div class="ovStripe"></div><div class="ovTitle">Tap to Start</div><div class="ovBest">BEST &nbsp;<b>815</b></div><div class="ovDivider"></div><div class="ovHint">TAP: JUMP<br>TAP AGAIN IN AIR: DOUBLE JUMP</div></div></div>
 </div>
 </div>
 
@@ -415,17 +418,42 @@ try{
     ensureAudioCtx();
     if(!audioCtx) return;
     var now = audioCtx.currentTime;
+
+    // 저음 thud (기존)
     var osc = audioCtx.createOscillator();
     var gain = audioCtx.createGain();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(160, now);
     osc.frequency.exponentialRampToValueAtTime(60, now + 0.09);
-    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.setValueAtTime(0.5, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
     osc.start(now);
     osc.stop(now + 0.13);
+
+    // 고음 클릭 성분 - BGM 저음에 안 묻히고 뚫고 나오게
+    var click = audioCtx.createOscillator();
+    var clickGain = audioCtx.createGain();
+    click.type = 'triangle';
+    click.frequency.setValueAtTime(1200, now);
+    click.frequency.exponentialRampToValueAtTime(500, now + 0.04);
+    clickGain.gain.setValueAtTime(0.28, now);
+    clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    click.connect(clickGain);
+    clickGain.connect(audioCtx.destination);
+    click.start(now);
+    click.stop(now + 0.06);
+
+    // 착지 순간 BGM을 짧게 덕킹(사이드체인) - 착지음이 확실히 들리도록
+    if(bgmMasterGain){
+      var baseVol = 0.45;
+      var g = bgmMasterGain.gain;
+      g.cancelScheduledValues(now);
+      g.setValueAtTime(g.value, now);
+      g.linearRampToValueAtTime(baseVol * 0.4, now + 0.03);
+      g.linearRampToValueAtTime(baseVol, now + 0.18);
+    }
   }
 
   function playLevelUpSound(){
@@ -464,6 +492,25 @@ try{
     playBgmStage(1, 0.3); // 재시작 시 BGM도 1단계(0.6배속) 버퍼로 리셋
     chicken.y = groundY; chicken.vy = 0; chicken.jumping = false; chicken.jumpsUsed = 0;
     document.getElementById('overlay').style.display = 'none';
+    document.getElementById('pauseBtn').classList.add('show');
+  }
+
+  function pauseGame(){
+    if(state !== 'playing') return;
+    state = 'paused';
+    if(audioCtx) audioCtx.suspend();
+    document.getElementById('pauseBtn').classList.remove('show');
+    var ov = document.getElementById('overlay');
+    ov.innerHTML = '<div class="ovCard"><div class="ovStripe"></div><div class="ovTitle">Paused</div><div class="ovDivider"></div><div class="ovHint">TAP TO RESUME</div></div>';
+    ov.style.display = 'flex';
+  }
+
+  function resumeGame(){
+    if(state !== 'paused') return;
+    state = 'playing';
+    if(audioCtx) audioCtx.resume();
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('pauseBtn').classList.add('show');
   }
 
   var fullscreenTried = false;
@@ -485,6 +532,7 @@ try{
     lastJumpInputTime = now;
 
     tryFullscreen();
+    if(state === 'paused'){ resumeGame(); return; }
     if(state === 'ready' || state === 'over'){ ensureAudioCtx(); reset(); return; }
     if(state === 'playing' && chicken.jumpsUsed < MAX_JUMPS){
       chicken.vy = chicken.jumpsUsed === 0 ? JUMP_V : JUMP_V2;
@@ -495,9 +543,37 @@ try{
   }
 
   frame.style.cursor = 'pointer';
-  frame.addEventListener('touchstart', function(e){ e.preventDefault(); jump(); }, { passive: false });
-  frame.addEventListener('mousedown', function(e){ if(e.pointerType === 'touch') return; jump(); });
+  frame.addEventListener('touchstart', function(e){ e.preventDefault(); jump(); checkDebugCornerTap(e.touches[0]); }, { passive: false });
+  frame.addEventListener('mousedown', function(e){ if(e.pointerType === 'touch') return; jump(); checkDebugCornerTap(e); });
+
+  var pauseBtnEl = document.getElementById('pauseBtn');
+  pauseBtnEl.addEventListener('touchstart', function(e){ e.preventDefault(); e.stopPropagation(); pauseGame(); }, { passive: false });
+  pauseBtnEl.addEventListener('click', function(e){ e.stopPropagation(); pauseGame(); });
+
+  var debugTapTimes = [];
+  function checkDebugCornerTap(pointerEvt){ // [임시 디버그용] 화면 좌상단 코너를 1.2초 안에 3번 탭하면 즉시 LV MAX로 점프 - 테스트 끝나면 제거할 것
+    if(!pointerEvt || state !== 'playing') return;
+    var rect = frame.getBoundingClientRect();
+    var relX = pointerEvt.clientX - rect.left, relY = pointerEvt.clientY - rect.top;
+    if(relX > 50 || relY > 50) { debugTapTimes = []; return; } // 코너 밖 탭이면 카운트 리셋
+    var now = Date.now();
+    debugTapTimes.push(now);
+    debugTapTimes = debugTapTimes.filter(function(t){ return now - t < 1200; });
+    if(debugTapTimes.length >= 3){
+      debugTapTimes = [];
+      var total = 0;
+      for(var i=0;i<LEVEL_DURATIONS.length;i++) total += LEVEL_DURATIONS[i];
+      elapsed = total;
+    }
+  }
   document.addEventListener('keydown', function(e){ if(e.code === 'Space'){ e.preventDefault(); jump(); } });
+  document.addEventListener('keydown', function(e){ // [임시 디버그용] M키: 플레이 중이면 즉시 LV MAX로 점프 - 테스트 끝나면 제거할 것
+    if((e.key === 'm' || e.key === 'M') && state === 'playing'){
+      var total = 0;
+      for(var i=0;i<LEVEL_DURATIONS.length;i++) total += LEVEL_DURATIONS[i];
+      elapsed = total;
+    }
+  });
 
   // 레벨 1~9 각 구간 길이(프레임, 60fps 기준). 레벨이 오를수록 구간이 조금씩 길어짐: 6.7초 -> 9.3초
   var LEVEL_DURATIONS = [400, 420, 440, 460, 480, 500, 520, 540, 560];
@@ -519,7 +595,7 @@ try{
   // 레벨별 최소 장애물 간격(프레임). LV1~9는 완만하게 조여지고, LV10(MAX)에서만 진짜 고인물 바닥으로 뚝 떨어짐
   function minFramesForLevel(lvl){
     if(lvl < 9) return Math.max(45 - lvl*3, 21);
-    return 13;
+    return 19; // 기존 13이었는데, 앞 레벨(21)과 너무 절벽지게 떨어져서 장애물이 거의 붙어버리는 문제가 있었음
   }
 
   function drawBackground(speed){
@@ -838,6 +914,7 @@ try{
           var oTop = groundY - o.h + 4;
           if(cRight > o.x && cLeft < o.x + o.w && cBottom > oTop){
             state = 'over';
+            document.getElementById('pauseBtn').classList.remove('show');
             playDeathSound();
             vibrate([40, 30, 60]);
             shakeTimer = SHAKE_DURATION;
