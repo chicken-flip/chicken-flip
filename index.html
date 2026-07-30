@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/chicken_flip_17.html -->
+<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/chicken_flip_22.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -32,6 +32,8 @@
   #overlay img { width: 54px; opacity:0.9; margin-bottom:2px; }
   #pauseBtn { position:absolute; top:8px; left:8px; z-index:5; width:28px; height:28px; border-radius:50%; border:none; background:rgba(31,27,23,0.55); color:#F4F1EC; font-size:11px; letter-spacing:1px; display:none; align-items:center; justify-content:center; cursor:pointer; padding:0; }
   #pauseBtn.show { display:flex; }
+  .ovBtnPrimary { display:block; width:100%; margin-top:14px; background:#D97757; color:#F4F1EC; font-weight:800; font-size:12px; letter-spacing:0.5px; padding:10px 14px; border-radius:999px; text-transform:uppercase; border:none; box-shadow:0 3px 0 #B8543A; cursor:pointer; animation: ovPulse 1.3s ease-in-out infinite; }
+  .ovBtnSecondary { display:block; width:100%; margin-top:8px; background:transparent; color:#8a8378; font-weight:700; font-size:11px; letter-spacing:0.5px; padding:7px 14px; border-radius:999px; text-transform:uppercase; border:1px solid #d8d2c5; cursor:pointer; }
 
   .ovCard { background:#F4F1EC; border:3px solid #1F1B17; border-radius:16px; box-shadow:0 6px 0 #1F1B17, 0 6px 14px rgba(0,0,0,0.35); padding:18px 26px 16px; text-align:center; min-width:180px; animation: ovPop 0.25s cubic-bezier(.34,1.56,.64,1); }
   .ovStripe { width:44px; height:4px; margin:0 auto 10px; border-radius:2px; background:linear-gradient(90deg,#D97757,#B8543A); }
@@ -218,6 +220,8 @@ try{
   var walkSpeed = 3.0;
   var lastLevelSeen = 0, levelUpTimer = 0; // 레벨업 시각 효과용
   var shakeTimer = 0, SHAKE_DURATION = 18; // 죽을 때 스크린 셰이크
+  var reviveCount = 0, MAX_REVIVES = 2;
+  var invincibleTimer = 0, INVINCIBLE_DURATION = 180; // 되살리기 후 3초(60fps 기준) 무적 워밍업
   var deathFadeTimer = 0, DEATH_FADE_DURATION = 45; // 죽을 때 컬러->회색 페이드
   var wideWarningShown = false, wideWarningTimer = 0; // 레벨6 진입 시 더블점프 경고 배너
   var obstacles = [];
@@ -488,12 +492,57 @@ try{
     obstacles = []; spawnTimer = 0;
     lastLevelSeen = 0; levelUpTimer = 0;
     shakeTimer = 0; deathFadeTimer = 0;
+    reviveCount = 0; invincibleTimer = 0;
     wideWarningShown = false; wideWarningTimer = 0;
     playBgmStage(1, 0.3); // 재시작 시 BGM도 1단계(0.6배속) 버퍼로 리셋
     chicken.y = groundY; chicken.vy = 0; chicken.jumping = false; chicken.jumpsUsed = 0;
     document.getElementById('overlay').style.display = 'none';
     document.getElementById('pauseBtn').classList.add('show');
   }
+
+  function finalizeGameOver(){
+    state = 'over';
+    var isNewBest = score > 0 && score > best;
+    if(isNewBest){ best = score; try{ localStorage.setItem('chicken_flip_best_score', String(best)); }catch(e){} }
+    var ov = document.getElementById('overlay');
+    var newBestHtml = isNewBest ? '<div class="ovNewBest">★ New Best!</div>' : '';
+    ov.innerHTML = '<div class="ovCard"><div class="ovStripe"></div><div class="ovTitle" style="font-size:12px; letter-spacing:2px; color:#8a8378;">Score</div><div class="ovScore">' + score + '</div>' + newBestHtml + '<div class="ovBest">BEST &nbsp;<b>' + best + '</b></div><div class="ovDivider"></div><div class="ovCta">Tap to Retry</div></div>';
+    ov.style.display = 'flex';
+  }
+
+  function doRevive(){
+    // TODO: 실제 광고 SDK 연동 시 여기서 광고 시청 완료 콜백 이후에 아래 로직 실행
+    reviveCount += 1;
+    state = 'reviveReady';
+    chicken.vy = 0; chicken.jumping = false; chicken.jumpsUsed = 0; // 죽은 그 자리에서 그대로 대기 (위치는 안 건드림)
+    var ov = document.getElementById('overlay');
+    ov.innerHTML = '<div class="ovCard"><div class="ovStripe"></div><div class="ovTitle" style="font-size:16px;">Get Ready!</div><div class="ovDivider"></div><div class="ovHint">TAP OR SPACE TO CONTINUE</div></div>';
+    ov.style.display = 'flex';
+  }
+
+  function startInvincibleRun(){
+    state = 'playing';
+    invincibleTimer = INVINCIBLE_DURATION; // 3초 워밍업 무적
+    shakeTimer = 0; deathFadeTimer = 0;
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('pauseBtn').classList.add('show');
+  }
+
+  function routeOverlayAction(action){
+    if(action === 'revive') doRevive();
+    else if(action === 'retry') finalizeGameOver();
+  }
+
+  var overlayEl = document.getElementById('overlay');
+  overlayEl.addEventListener('touchstart', function(e){
+    var btn = e.target.closest && e.target.closest('[data-action]');
+    if(btn){ e.preventDefault(); e.stopPropagation(); routeOverlayAction(btn.getAttribute('data-action')); }
+  }, { passive: false });
+  overlayEl.addEventListener('mousedown', function(e){
+    if(e.pointerType === 'touch') return;
+    var btn = e.target.closest && e.target.closest('[data-action]');
+    if(btn){ e.stopPropagation(); routeOverlayAction(btn.getAttribute('data-action')); }
+  });
 
   function pauseGame(){
     if(state !== 'playing') return;
@@ -533,6 +582,7 @@ try{
 
     tryFullscreen();
     if(state === 'paused'){ resumeGame(); return; }
+    if(state === 'reviveReady'){ startInvincibleRun(); return; }
     if(state === 'ready' || state === 'over'){ ensureAudioCtx(); reset(); return; }
     if(state === 'playing' && chicken.jumpsUsed < MAX_JUMPS){
       chicken.vy = chicken.jumpsUsed === 0 ? JUMP_V : JUMP_V2;
@@ -640,6 +690,12 @@ try{
     if(!spriteReady) return;
     var gx = chicken.x, gy = chicken.y;
 
+    var prevAlpha = ctx.globalAlpha;
+    if(invincibleTimer > 0){
+      // 무적 워밍업 중: 깜빡깜빡 (약 0.1초 주기로 on/off)
+      ctx.globalAlpha = (Math.floor(invincibleTimer / 6) % 2 === 0) ? 0.3 : 1;
+    }
+
     if(!chicken.jumping){
       // 러닝: 속도가 빨라질수록 동작 주기도 짧아지게 연동
       var speedNow = currentSpeed();
@@ -673,6 +729,7 @@ try{
       var boardY = gy + 1;
       ctx.drawImage(boardImg, gx - BOARD_W/2, boardY, BOARD_W, BOARD_H);
     }
+    ctx.globalAlpha = prevAlpha;
   }
 
   var OBSTACLE_TYPES = ['cat', 'dog', 'cone', 'bin', 'trashbag', 'hydrant', 'pigeon'];
@@ -834,6 +891,7 @@ try{
       }
       if(levelUpTimer > 0) levelUpTimer -= 1;
       if(wideWarningTimer > 0) wideWarningTimer -= 1;
+      if(invincibleTimer > 0) invincibleTimer -= 1;
 
       chicken.vy += GRAV;
       chicken.y += chicken.vy;
@@ -889,18 +947,19 @@ try{
           var curW = chicken.jumping ? SPR_JUMP_W : SPR_RUN_W;
           var cLeft = chicken.x - curW/2 + 8, cRight = chicken.x + curW/2 - 8, cBottom = chicken.y;
           var oTop = groundY - o.h + 4;
-          if(cRight > o.x && cLeft < o.x + o.w && cBottom > oTop){
-            state = 'over';
-            document.getElementById('pauseBtn').classList.remove('show');
+          if(invincibleTimer <= 0 && cRight > o.x && cLeft < o.x + o.w && cBottom > oTop){
             playDeathSound();
             vibrate([40, 30, 60]);
             shakeTimer = SHAKE_DURATION;
-            var isNewBest = score > 0 && score > best;
-            if(isNewBest){ best = score; try{ localStorage.setItem('chicken_flip_best_score', String(best)); }catch(e){} }
-            var ov = document.getElementById('overlay');
-            var newBestHtml = isNewBest ? '<div class="ovNewBest">★ New Best!</div>' : '';
-            ov.innerHTML = '<div class="ovCard"><div class="ovStripe"></div><div class="ovTitle" style="font-size:12px; letter-spacing:2px; color:#8a8378;">Score</div><div class="ovScore">' + score + '</div>' + newBestHtml + '<div class="ovBest">BEST &nbsp;<b>' + best + '</b></div><div class="ovDivider"></div><div class="ovCta">Tap to Retry</div></div>';
-            ov.style.display = 'flex';
+            document.getElementById('pauseBtn').classList.remove('show');
+            if(reviveCount < MAX_REVIVES){
+              state = 'reviveOffer';
+              var ov1 = document.getElementById('overlay');
+              ov1.innerHTML = '<div class="ovCard"><div class="ovStripe"></div><div class="ovTitle" style="font-size:12px; letter-spacing:2px; color:#8a8378;">Score</div><div class="ovScore">' + score + '</div><div class="ovDivider"></div><button class="ovBtnPrimary" data-action="revive">Watch Ad to Revive</button><button class="ovBtnSecondary" data-action="retry">Retry</button></div>';
+              ov1.style.display = 'flex';
+            } else {
+              finalizeGameOver();
+            }
           }
         }
       }
@@ -981,7 +1040,7 @@ try{
 
     ctx.restore(); // 스크린 셰이크 변환 종료 (이 아래는 화면 흔들림 영향 없음)
 
-    if(state === 'over'){
+    if(state === 'over' || state === 'reviveOffer' || state === 'reviveReady'){
       if(deathFadeTimer < DEATH_FADE_DURATION) deathFadeTimer += 1;
       var fp = Math.min(deathFadeTimer / DEATH_FADE_DURATION, 1);
       var grayVal = Math.round(200 - 165 * fp); // 옅은 회색(200) -> 짙은 회색(35)
