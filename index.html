@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/chicken_flip_15.html -->
+<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/chicken_flip_17.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -543,37 +543,14 @@ try{
   }
 
   frame.style.cursor = 'pointer';
-  frame.addEventListener('touchstart', function(e){ e.preventDefault(); jump(); checkDebugCornerTap(e.touches[0]); }, { passive: false });
-  frame.addEventListener('mousedown', function(e){ if(e.pointerType === 'touch') return; jump(); checkDebugCornerTap(e); });
+  frame.addEventListener('touchstart', function(e){ e.preventDefault(); jump(); }, { passive: false });
+  frame.addEventListener('mousedown', function(e){ if(e.pointerType === 'touch') return; jump(); });
 
   var pauseBtnEl = document.getElementById('pauseBtn');
   pauseBtnEl.addEventListener('touchstart', function(e){ e.preventDefault(); e.stopPropagation(); pauseGame(); }, { passive: false });
   pauseBtnEl.addEventListener('click', function(e){ e.stopPropagation(); pauseGame(); });
 
-  var debugTapTimes = [];
-  function checkDebugCornerTap(pointerEvt){ // [임시 디버그용] 화면 좌상단 코너를 1.2초 안에 3번 탭하면 즉시 LV MAX로 점프 - 테스트 끝나면 제거할 것
-    if(!pointerEvt || state !== 'playing') return;
-    var rect = frame.getBoundingClientRect();
-    var relX = pointerEvt.clientX - rect.left, relY = pointerEvt.clientY - rect.top;
-    if(relX > 50 || relY > 50) { debugTapTimes = []; return; } // 코너 밖 탭이면 카운트 리셋
-    var now = Date.now();
-    debugTapTimes.push(now);
-    debugTapTimes = debugTapTimes.filter(function(t){ return now - t < 1200; });
-    if(debugTapTimes.length >= 3){
-      debugTapTimes = [];
-      var total = 0;
-      for(var i=0;i<LEVEL_DURATIONS.length;i++) total += LEVEL_DURATIONS[i];
-      elapsed = total;
-    }
-  }
   document.addEventListener('keydown', function(e){ if(e.code === 'Space'){ e.preventDefault(); jump(); } });
-  document.addEventListener('keydown', function(e){ // [임시 디버그용] M키: 플레이 중이면 즉시 LV MAX로 점프 - 테스트 끝나면 제거할 것
-    if((e.key === 'm' || e.key === 'M') && state === 'playing'){
-      var total = 0;
-      for(var i=0;i<LEVEL_DURATIONS.length;i++) total += LEVEL_DURATIONS[i];
-      elapsed = total;
-    }
-  });
 
   // 레벨 1~9 각 구간 길이(프레임, 60fps 기준). 레벨이 오를수록 구간이 조금씩 길어짐: 6.7초 -> 9.3초
   var LEVEL_DURATIONS = [400, 420, 440, 460, 480, 500, 520, 540, 560];
