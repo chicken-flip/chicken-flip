@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0054)file:///C:/Users/Husteel/Downloads/chicken_flip_4.html -->
+<!-- saved from url=(0054)file:///C:/Users/Husteel/Downloads/chicken_flip_5.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -393,7 +393,10 @@ try{
     if (!jumpBuffer){ jumpAudio.currentTime = 0; jumpAudio.play().catch(function(){}); return; }
     var src = audioCtx.createBufferSource();
     src.buffer = jumpBuffer;
-    src.connect(audioCtx.destination);
+    var jumpGain = audioCtx.createGain();
+    jumpGain.gain.value = 0.8; // 기존 대비 약 -2dB
+    src.connect(jumpGain);
+    jumpGain.connect(audioCtx.destination);
     src.start(0);
     currentJumpSrc = src;
   }
@@ -724,10 +727,10 @@ try{
           var wideType = Math.random() < 0.5 ? 'barricade' : 'spikestrip';
           var wideW, wideH;
           if(wideType === 'barricade'){
-            wideW = singleJumpRangePx * (1.1 + Math.random()*0.15); // 한 번 점프 최대거리의 110~125% -> 반드시 더블점프 필요
+            wideW = singleJumpRangePx * (1.02 + Math.random()*0.08); // 102~110%: 싱글점프론 불가, 빠른 더블탭(~127%)에도 안전마진 확보
             wideH = 44 + Math.random()*4;
           } else {
-            wideW = singleJumpRangePx * (1.15 + Math.random()*0.2); // 낮고 길게: 115~135%
+            wideW = singleJumpRangePx * (1.05 + Math.random()*0.08); // 낮고 길게: 105~113%
             wideH = 16 + Math.random()*3;
           }
           obstacles.push({ x: LOGICAL_W + 10, w: wideW, h: wideH, type: wideType, wide: true });
