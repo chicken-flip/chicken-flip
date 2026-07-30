@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0054)file:///C:/Users/Husteel/Downloads/chicken_flip_6.html -->
+<!-- saved from url=(0054)file:///C:/Users/Husteel/Downloads/chicken_flip_7.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -92,7 +92,6 @@
 </svg>
 </div>
 
-<div class="hint">TAP TO JUMP · TAP AGAIN IN AIR FOR DOUBLE JUMP · SPEEDS UP AFTER 1 MIN</div>
 
 <div class="rotateHint">
 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#B8543A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -104,8 +103,8 @@
 <span>Turn your phone sideways to play</span>
 </div>
 
-<div class="frame" id="frame" style="margin-left: 0px; width: 1920px; height: 858.947px; cursor: pointer;">
-<canvas id="gc" width="1920" height="859" style="width: 1920px; height: 858.947px;"></canvas>
+<div class="frame" id="frame" style="margin-left: 0px; width: 952px; height: 425.895px; cursor: pointer;">
+<canvas id="gc" width="952" height="426" style="width: 952px; height: 425.895px;"></canvas>
 <div id="overlay"><div class="ovCard"><div class="ovStripe"></div><div class="ovTitle">Tap to Start</div><div class="ovBest">BEST &nbsp;<b>48</b></div><div class="ovDivider"></div><div class="ovHint">TAP: JUMP<br>TAP AGAIN IN AIR: DOUBLE JUMP</div></div></div>
 </div>
 </div>
@@ -459,15 +458,27 @@ try{
   frame.addEventListener('mousedown', function(e){ if(e.pointerType === 'touch') return; jump(); });
   document.addEventListener('keydown', function(e){ if(e.code === 'Space'){ e.preventDefault(); jump(); } });
 
-  var LEVEL_DURATION = 400; // 약 6.7초마다 한 단계씩 (기존 8초 → 앞당김, 레벨이 올라갈수록 체감 폭이 더 커짐)
+  // 레벨 1~9 각 구간 길이(프레임, 60fps 기준). 레벨이 오를수록 구간이 조금씩 길어짐: 6.7초 -> 9.3초
+  var LEVEL_DURATIONS = [400, 420, 440, 460, 480, 500, 520, 540, 560];
 
   function currentLevel(){
-    return Math.floor(elapsed / LEVEL_DURATION);
+    var acc = 0;
+    for(var i = 0; i < LEVEL_DURATIONS.length; i++){
+      acc += LEVEL_DURATIONS[i];
+      if(elapsed < acc) return i;
+    }
+    return LEVEL_DURATIONS.length; // 모든 구간을 다 지나면 MAX(9)
   }
 
   function currentSpeed(){
-    var level = Math.min(currentLevel(), 10); // 최대 10단계까지
+    var level = Math.min(currentLevel(), 9); // 최대 10단계까지
     return walkSpeed + level * 1.05; // 더블점프로 쉬워진 난이도를 보정하기 위해 증가폭 상향 (0.85 → 1.05)
+  }
+
+  // 레벨별 최소 장애물 간격(프레임). LV1~9는 완만하게 조여지고, LV10(MAX)에서만 진짜 고인물 바닥으로 뚝 떨어짐
+  function minFramesForLevel(lvl){
+    if(lvl < 9) return Math.max(45 - lvl*3, 21);
+    return 13;
   }
 
   function drawBackground(speed){
@@ -705,7 +716,7 @@ try{
       elapsed += 1;
       score = Math.floor(elapsed / 6);
 
-      var levelNow = Math.min(currentLevel(), 10);
+      var levelNow = Math.min(currentLevel(), 9);
       if(levelNow > lastLevelSeen){
         lastLevelSeen = levelNow;
         playBgmStage(bgmStageForLevel(lastLevelSeen), 0.6); // 레벨업 시 해당 단계 버퍼로 0.6초 크로스페이드
@@ -724,7 +735,7 @@ try{
 
       spawnTimer -= 1;
       if(spawnTimer <= 0){
-        var lvl = Math.min(currentLevel(), 10);
+        var lvl = Math.min(currentLevel(), 9);
 
         // 레벨 6(내부 인덱스 5)부터 25% 확률로 폭 넓은 바리케이드/스파이크 스트립 스폰 (더블점프 필요)
         var spawnWide = lvl >= 5 && Math.random() < 0.25;
@@ -741,7 +752,7 @@ try{
             wideH = 16 + Math.random()*3;
           }
           obstacles.push({ x: LOGICAL_W + 10, w: wideW, h: wideH, type: wideType, wide: true });
-          var minFrames = lvl < 5 ? 45 : Math.max(45 - (lvl-4)*7, 14);
+          var minFrames = minFramesForLevel(lvl);
           spawnTimer = Math.max(90 * (0.8 + Math.random()*0.4), minFrames + 30); // 다음 장애물까지 여유를 좀 더 둠
         } else {
           var type = OBSTACLE_TYPES[Math.floor(Math.random()*OBSTACLE_TYPES.length)];
@@ -753,7 +764,7 @@ try{
           var w = h * OBS_ASPECT[type];
           obstacles.push({ x: LOGICAL_W + 10, w: w, h: h, type: type });
 
-          var minFrames = lvl < 5 ? 45 : Math.max(45 - (lvl-4)*7, 14); // 레벨 5부터 최소값이 줄어들어 9~10에서 거의 연속 점프 수준
+          var minFrames = minFramesForLevel(lvl);
           var speedRatio = walkSpeed / speed;
           var baseFrames = Math.max(78 * Math.pow(speedRatio, 1.4), minFrames + 2); // 속도가 오를수록 빈도가 비례 이상으로 가파르게 증가
           var raw = baseFrames * (0.65 + Math.random()*0.6); // 불규칙한 편차
