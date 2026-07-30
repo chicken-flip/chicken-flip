@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0054)file:///C:/Users/Husteel/Downloads/chicken_flip_5.html -->
+<!-- saved from url=(0054)file:///C:/Users/Husteel/Downloads/chicken_flip_6.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -104,8 +104,8 @@
 <span>Turn your phone sideways to play</span>
 </div>
 
-<div class="frame" id="frame" style="margin-left: 0px; width: 952px; height: 425.895px; cursor: pointer;">
-<canvas id="gc" width="952" height="426" style="width: 952px; height: 425.895px;"></canvas>
+<div class="frame" id="frame" style="margin-left: 0px; width: 1920px; height: 858.947px; cursor: pointer;">
+<canvas id="gc" width="1920" height="859" style="width: 1920px; height: 858.947px;"></canvas>
 <div id="overlay"><div class="ovCard"><div class="ovStripe"></div><div class="ovTitle">Tap to Start</div><div class="ovBest">BEST &nbsp;<b>48</b></div><div class="ovDivider"></div><div class="ovHint">TAP: JUMP<br>TAP AGAIN IN AIR: DOUBLE JUMP</div></div></div>
 </div>
 </div>
@@ -215,6 +215,7 @@ try{
   try{ best = parseInt(localStorage.getItem('chicken_flip_best_score') || '0', 10) || 0; }catch(e){ best = 0; }
   var walkSpeed = 3.0;
   var lastLevelSeen = 0, levelUpTimer = 0; // 레벨업 시각 효과용
+  var wideWarningShown = false, wideWarningTimer = 0; // 레벨6 진입 시 더블점프 경고 배너
   var obstacles = [];
   var spawnTimer = 0;
   var buildOffsetFar = 0, buildOffsetNear = 0, cloudOffset = 0;
@@ -419,6 +420,7 @@ try{
     score = 0; elapsed = 0;
     obstacles = []; spawnTimer = 0;
     lastLevelSeen = 0; levelUpTimer = 0;
+    wideWarningShown = false; wideWarningTimer = 0;
     playBgmStage(1, 0.3); // 재시작 시 BGM도 1단계(0.6배속) 버퍼로 리셋
     chicken.y = groundY; chicken.vy = 0; chicken.jumping = false; chicken.jumpsUsed = 0;
     document.getElementById('overlay').style.display = 'none';
@@ -708,8 +710,13 @@ try{
         lastLevelSeen = levelNow;
         playBgmStage(bgmStageForLevel(lastLevelSeen), 0.6); // 레벨업 시 해당 단계 버퍼로 0.6초 크로스페이드
         levelUpTimer = 45; // 약 0.75초간 이펙트 표시
+        if(levelNow === 5 && !wideWarningShown){ // 레벨6(폭 넓은 장애물 등장 시작) 최초 진입 시 경고
+          wideWarningShown = true;
+          wideWarningTimer = 150; // 약 2.5초간 표시
+        }
       }
       if(levelUpTimer > 0) levelUpTimer -= 1;
+      if(wideWarningTimer > 0) wideWarningTimer -= 1;
 
       chicken.vy += GRAV;
       chicken.y += chicken.vy;
@@ -727,10 +734,10 @@ try{
           var wideType = Math.random() < 0.5 ? 'barricade' : 'spikestrip';
           var wideW, wideH;
           if(wideType === 'barricade'){
-            wideW = singleJumpRangePx * (1.02 + Math.random()*0.08); // 102~110%: 싱글점프론 불가, 빠른 더블탭(~127%)에도 안전마진 확보
+            wideW = singleJumpRangePx * (1.0 + Math.random()*0.05); // 100~105%: 싱글점프 불가 마지노선까지 타이트하게
             wideH = 44 + Math.random()*4;
           } else {
-            wideW = singleJumpRangePx * (1.05 + Math.random()*0.08); // 낮고 길게: 105~113%
+            wideW = singleJumpRangePx * (1.02 + Math.random()*0.05); // 낮고 길게: 102~107%
             wideH = 16 + Math.random()*3;
           }
           obstacles.push({ x: LOGICAL_W + 10, w: wideW, h: wideH, type: wideType, wide: true });
@@ -809,6 +816,30 @@ try{
         ctx.fillStyle = '#D97757';
         ctx.font = 'bold 16px sans-serif';
         ctx.fillText('LEVEL ' + (lastLevelSeen + 1 >= 10 ? 'MAX' : lastLevelSeen + 1), LOGICAL_W/2, riseY);
+        ctx.textAlign = 'left';
+        ctx.restore();
+      }
+
+      if(wideWarningTimer > 0){
+        var alphaIn = Math.min((150 - wideWarningTimer) / 15, 1);
+        var alphaOut = Math.min(wideWarningTimer / 20, 1);
+        var wAlpha = Math.min(alphaIn, alphaOut);
+        var pulse = 1 + Math.sin(wideWarningTimer * 0.35) * 0.04;
+        ctx.save();
+        ctx.globalAlpha = wAlpha;
+        var bw = 240, bh = 26, bx = LOGICAL_W/2 - bw/2, by = 56;
+        ctx.translate(LOGICAL_W/2, by + bh/2);
+        ctx.scale(pulse, pulse);
+        ctx.translate(-LOGICAL_W/2, -(by + bh/2));
+        ctx.fillStyle = 'rgba(31,27,23,0.85)';
+        ctx.fillRect(bx, by, bw, bh);
+        ctx.strokeStyle = '#D97757';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bx, by, bw, bh);
+        ctx.fillStyle = '#F4F1EC';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('\u26A0 DOUBLE JUMP TO CLEAR!', LOGICAL_W/2, by + bh/2 + 4);
         ctx.textAlign = 'left';
         ctx.restore();
       }
