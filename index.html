@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/chicken_flip_22.html -->
+<!-- saved from url=(0055)file:///C:/Users/Husteel/Downloads/chicken_flip_25.html -->
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -107,16 +107,28 @@
 <span>Turn your phone sideways to play</span>
 </div>
 
-<div class="frame" id="frame" style="margin-left: 0px; width: 1138px; height: 509.105px; cursor: pointer;">
-<canvas id="gc" width="1138" height="509" style="width: 1138px; height: 509.105px;"></canvas>
-<button id="pauseBtn" aria-label="Pause">❙❙</button>
-<div id="overlay"><div class="ovCard"><div class="ovStripe"></div><div class="ovTitle">Tap to Start</div><div class="ovBest">BEST &nbsp;<b>815</b></div><div class="ovDivider"></div><div class="ovHint">TAP: JUMP<br>TAP AGAIN IN AIR: DOUBLE JUMP</div></div></div>
+<div class="frame" id="frame" style="margin-left: 0px; width: 952px; height: 425.895px; cursor: pointer;">
+<canvas id="gc" width="952" height="426" style="width: 952px; height: 425.895px;"></canvas>
+<button id="pauseBtn" aria-label="Pause" class="">❙❙</button>
+<div id="overlay" style="display: flex;"><div class="ovCard"><div class="ovStripe"></div><div class="ovTitle" style="font-size:12px; letter-spacing:2px; color:#8a8378;">Score</div><div class="ovScore">50</div><div class="ovDivider"></div><button class="ovBtnPrimary" data-action="revive">Watch Ad to Revive</button><button class="ovBtnSecondary" data-action="retry">Retry</button></div></div>
 </div>
 </div>
 
 <script>
 (function(){
 try{
+  /* ===== 앱인토스 SDK 연동 체크리스트 (다음 세션에서 이어서 작업) =====
+   * 패키지: @apps-in-toss/web-framework
+   * 1. 로그인(유저 식별)  - import { appLogin } from "@apps-in-toss/web-framework";
+   *                         const { authorizationCode } = await appLogin();
+   * 2. Safe Area 여백    - import { getSafeAreaInsets } from "@apps-in-toss/web-framework";
+   *                         const insets = getSafeAreaInsets(); // { top, bottom } (px)
+   *                         -> #gameArea/#frame 패딩에 반영 필요 (풀스크린 심사 필수 항목)
+   * 3. 리워드 광고        - doRevive() 함수 내 TODO 참고 (Google AdMob 기반, 정확한 함수명 문서 재확인 필요)
+   * 4. 리더보드           - 미확인, 다음 세션에 developers-apps-in-toss.toss.im 문서에서 확인
+   * 5. 행동 기록(분석)     - 미확인, 다음 세션에 문서에서 확인
+   * 6. 네이티브 저장소     - 현재 localStorage(best score) 사용 중 -> SDK 네이티브 저장소로 교체 권장
+   * ================================================================ */
   var splash = document.getElementById('splash');
   var gameArea = document.getElementById('gameArea');
   setTimeout(function(){
@@ -220,6 +232,7 @@ try{
   var walkSpeed = 3.0;
   var lastLevelSeen = 0, levelUpTimer = 0; // 레벨업 시각 효과용
   var shakeTimer = 0, SHAKE_DURATION = 18; // 죽을 때 스크린 셰이크
+  var lastFrameTS = null, frameScale = 1; // 델타타임 기반 프레임 보정용 (기기별 프레임레이트 차이 무관하게 동일 속도 유지)
   var reviveCount = 0, MAX_REVIVES = 2;
   var invincibleTimer = 0, INVINCIBLE_DURATION = 180; // 되살리기 후 3초(60fps 기준) 무적 워밍업
   var deathFadeTimer = 0, DEATH_FADE_DURATION = 45; // 죽을 때 컬러->회색 페이드
@@ -511,7 +524,10 @@ try{
   }
 
   function doRevive(){
-    // TODO: 실제 광고 SDK 연동 시 여기서 광고 시청 완료 콜백 이후에 아래 로직 실행
+    // TODO(앱인토스 SDK 연동 지점 - 리워드 광고):
+    //   import { showRewardedAd } from "@apps-in-toss/web-framework"; (정확한 함수명은 광고 문서에서 재확인)
+    //   await showRewardedAd(); 성공 콜백 이후에 아래 되살리기 로직 실행
+    //   SDK: @apps-in-toss/web-framework, 광고는 Google AdMob 기반 (전면형/리워드 지원)
     reviveCount += 1;
     state = 'reviveReady';
     chicken.vy = 0; chicken.jumping = false; chicken.jumpsUsed = 0; // 죽은 그 자리에서 그대로 대기 (위치는 안 건드림)
@@ -640,7 +656,7 @@ try{
     ctx.fillStyle = lerpColor(DAY.sun, NIGHT.sun, night);
     ctx.beginPath(); ctx.arc(330, 28, 11, 0, Math.PI*2); ctx.fill();
 
-    cloudOffset -= 0.1;
+    cloudOffset -= 0.1 * frameScale;
     ctx.globalAlpha = 1 - night*0.7;
     ctx.fillStyle = '#ffffff';
     clouds.forEach(function(c){
@@ -652,8 +668,9 @@ try{
     });
     ctx.globalAlpha = 1;
 
-    buildOffsetFar -= Math.max(speed*0.08, 0.15);
-    if(buildOffsetFar < -buildingsFarWidth) buildOffsetFar += buildingsFarWidth;
+    buildOffsetFar -= Math.max(speed*0.08, 0.15) * frameScale;
+    if(!isFinite(buildOffsetFar)) buildOffsetFar = 0;
+    while(buildOffsetFar < -buildingsFarWidth) buildOffsetFar += buildingsFarWidth;
     ctx.fillStyle = lerpColor(DAY.bFar, NIGHT.bFar, night);
     buildingsFar.forEach(function(b){
       for(var rep=-1; rep<=1; rep++){
@@ -662,8 +679,9 @@ try{
       }
     });
 
-    buildOffsetNear -= Math.max(speed*0.35, 0.5);
-    if(buildOffsetNear < -buildingsNearWidth) buildOffsetNear += buildingsNearWidth;
+    buildOffsetNear -= Math.max(speed*0.35, 0.5) * frameScale;
+    if(!isFinite(buildOffsetNear)) buildOffsetNear = 0;
+    while(buildOffsetNear < -buildingsNearWidth) buildOffsetNear += buildingsNearWidth;
     ctx.fillStyle = lerpColor(DAY.bNear, NIGHT.bNear, night);
     buildingsNear.forEach(function(b){
       for(var rep=-1; rep<=1; rep++){
@@ -861,21 +879,29 @@ try{
     ctx.drawImage(obsImgs[o.type], o.x, top, o.w, o.h);
   }
 
-  function loop(){
+  function loop(ts){
     requestAnimationFrame(loop);
+
+    // 델타타임 계산: 60fps를 기준(frameScale=1)으로 실제 프레임레이트에 맞춰 모든 움직임을 보정
+    if(lastFrameTS === null) lastFrameTS = ts;
+    var dtMs = ts - lastFrameTS;
+    lastFrameTS = ts;
+    if(!isFinite(dtMs) || dtMs <= 0 || dtMs > 250) dtMs = 1000/60; // 비정상 값(NaN 포함) 방어
+    frameScale = (dtMs / 1000) * 60;
+
     var speed = currentSpeed();
 
     ctx.save();
     if(shakeTimer > 0){
       var shakeAmt = 6 * (shakeTimer / SHAKE_DURATION);
       ctx.translate((Math.random()*2-1) * shakeAmt, (Math.random()*2-1) * shakeAmt);
-      shakeTimer -= 1;
+      shakeTimer -= frameScale;
     }
 
     var night = drawBackground(speed);
 
     if(state === 'playing' && spriteReady){
-      elapsed += 1;
+      elapsed += frameScale;
       score = Math.floor(elapsed / 6);
 
       var levelNow = Math.min(currentLevel(), 9);
@@ -889,19 +915,19 @@ try{
           wideWarningTimer = 150; // 약 2.5초간 표시
         }
       }
-      if(levelUpTimer > 0) levelUpTimer -= 1;
-      if(wideWarningTimer > 0) wideWarningTimer -= 1;
-      if(invincibleTimer > 0) invincibleTimer -= 1;
+      if(levelUpTimer > 0) levelUpTimer -= frameScale;
+      if(wideWarningTimer > 0) wideWarningTimer -= frameScale;
+      if(invincibleTimer > 0) invincibleTimer -= frameScale;
 
-      chicken.vy += GRAV;
-      chicken.y += chicken.vy;
+      chicken.vy += GRAV * frameScale;
+      chicken.y += chicken.vy * frameScale;
       if(chicken.y > groundY){
         chicken.y = groundY; chicken.vy = 0;
         if(chicken.jumping) playLandSound(); // 공중에 있다가 착지하는 순간에만 재생
         chicken.jumping = false; chicken.jumpsUsed = 0;
       }
 
-      spawnTimer -= 1;
+      spawnTimer -= frameScale;
       if(spawnTimer <= 0){
         var lvl = Math.min(currentLevel(), 9);
 
@@ -940,7 +966,7 @@ try{
         }
       }
       for(var i = obstacles.length - 1; i >= 0; i--){
-        obstacles[i].x -= speed;
+        obstacles[i].x -= speed * frameScale;
         if(obstacles[i].x + obstacles[i].w < -5) obstacles.splice(i, 1);
         else {
           var o = obstacles[i];
@@ -1041,7 +1067,7 @@ try{
     ctx.restore(); // 스크린 셰이크 변환 종료 (이 아래는 화면 흔들림 영향 없음)
 
     if(state === 'over' || state === 'reviveOffer' || state === 'reviveReady'){
-      if(deathFadeTimer < DEATH_FADE_DURATION) deathFadeTimer += 1;
+      if(deathFadeTimer < DEATH_FADE_DURATION) deathFadeTimer += frameScale;
       var fp = Math.min(deathFadeTimer / DEATH_FADE_DURATION, 1);
       var grayVal = Math.round(200 - 165 * fp); // 옅은 회색(200) -> 짙은 회색(35)
       var fadeAlpha = 0.15 + 0.55 * fp;
@@ -1049,7 +1075,7 @@ try{
       ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
     }
   }
-  loop();
+  requestAnimationFrame(loop);
 }catch(err){
   var ov = document.getElementById('overlay');
   if(ov){ ov.innerHTML = '<div class="ovCard"><div class="ovStripe"></div><div class="ovHint" style="color:#B8543A;">Error: ' + (err && err.message ? err.message : err) + '</div></div>'; }
